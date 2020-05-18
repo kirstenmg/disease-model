@@ -17,11 +17,12 @@ To do:
      - boxes open up, dots enter center
  - aisles
      - movement angles
+ - add counts for different groups
 
 """
 
 
-#constants
+# constants
 RADIUS    = 10
 (WIDTH, HEIGHT) = (400, 400)
 SPEED           = 1
@@ -36,7 +37,7 @@ RECOVERY        = 10 #seconds
 WINDOW_COLOR    = (255, 255, 255)
 WINDOW_TITLE    = "Particles"
 
-NUM_PARTICLES   = 20
+NUM_PARTICLES   = 50
 
 
 # activate pygame library
@@ -55,22 +56,39 @@ class Particle:
         self.y = y
         self.radius = RADIUS
         self.thickness = 1
-        self.speed = random.random()
-        self.color = (0, 0, self.speed * 255)
+        self.speed = random.random() # a characteristic of the Particle
+        self.current_speed = self.speed # actual speed, adjusted after collisions
+        self.collision_time = 0 # time since latest collision
+        self.collided = False
+        self.color = (0, 0, 100 + self.speed * 155)
         self.angle = angle
         self.status = "healthy"
         self.onset = 0 # this doesn't become relevant until infection
 
         self.recovery_probability  = random.uniform(0.9, 1)
+        self.symptomatic_probability = random.uniform(0.5, 0.75)
         self.infection_probability = random.uniform(0.9, 1) # not realistic?
 
+    # draw particle on screen
     def display(self):
         pygame.draw.circle(screen, self.color, ((int)(self.x),
                            (int)(self.y)), self.radius)
-    def move(self):
-        self.x += math.cos(self.angle) * self.speed
-        self.y += -math.sin(self.angle) * self.speed
 
+    # update x and y position of particle
+    def move(self):
+        # check if speed should be reset - it is averaged, then restored to the
+        # particle's original speed
+##        if (self.collided and time.time() - self.collision_time >= 0.5):
+##            self.current_speed = self.speed
+##            self.collided = False
+##        elif (self.collided and time.time() - self.collision_time >= 0.25):
+##            self.current_speed = (self.current_speed + self.speed) / 2
+
+        # update position
+        self.x += math.cos(self.angle) * self.current_speed
+        self.y += -math.sin(self.angle) * self.current_speed
+
+    # check if particle needs to bounce off the wall
     def bounce(self):
         if self.x > WIDTH - self.radius:
             self.x = 2 * (WIDTH - self.radius) - self.x
@@ -88,23 +106,26 @@ class Particle:
             self.y = 2 * self.radius - self.y
             self.angle = - self.angle
 
-    def infect(self):
-        
-        if (self.status == "healthy"):
+    # infect this particle, if it is not already
+    def infect(self):        
+        if self.status != "infected":
             num = random.random()
-            if (num >= 0.8):
-                self.color  = (255 * self.speed, 0, 0)
-            self.status = "infected"
-            self.onset  = time.time()
+            if num <= self.infection_probability:
+                num = random.random()
+                if num <= self.symptomatic_probability:
+                    self.color  = (100 * self.speed + 155, 0, 0)
+                self.status = "infected"
+                self.onset  = time.time()
 
+    # check if the particle should recover, if so, recover
     def recover(self):
         if self.status == "infected" and time.time() - self.onset > RECOVERY:
             self.color  = RECOVERED_COLOR
             self.status = "recovered"
             self.infection_probability = random.uniform(0, 0.01)
+            
 
-
-# adjust direction if particle centers are closer than twice
+# adjust direction if centers of any two particles are closer than twice
 # the radius
 # parameter is list of all particles in the window
 def collide(particles):
@@ -120,12 +141,16 @@ def collide(particles):
             if distance < RADIUS * 2:
 
                 # adjust directions (switch velocities)
-                temp_angle      = target.angle
-                temp_speed      = target.speed
-                target.angle    = other.angle
-                target.speed    = other.speed
-                other.angle     = temp_angle
-                other.speed     = temp_speed
+                temp_angle              = target.angle
+                temp_speed              = target.current_speed
+                target.angle            = other.angle
+                target.current_speed    = other.current_speed
+                other.angle             = temp_angle
+                other.current_speed     = temp_speed
+                target.collision_time   = time.time()
+                other.collision_time    = time.time()
+                target.collided = True
+                other.collided  = True
 
                 if (target.status == "infected" or other.status == "infected"):
                     target.infect()
@@ -156,11 +181,14 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit() # we could also set running = False
+
+        # update each particle in our list and the display
         for p in particles:
             p.move()
             p.bounce()
             p.display()
             p.recover()
+        
         collide(particles)
         pygame.display.update()
         screen.fill(WINDOW_COLOR)
