@@ -5,28 +5,11 @@ import math   #to use math functions
 import time   #to keep track of infection time
 
 
-"""
-To do:
- - maintaining speed
- - recovery rate
- - amount of time sick - correlates with recovery rate
- - walls
- - phases:
-     - walled in, with doors
-         - doors close
-     - boxes open up, dots enter center
- - aisles
-     - movement angles
- - add counts for different groups
-
-"""
-
-
 # constants
-RADIUS    = 10
-(WIDTH, HEIGHT) = (400, 400)
-SPEED           = 1
-COLLIDED_SPEED  = 0.5
+RADIUS    = 5
+(WIDTH, HEIGHT) = (300, 300)
+# SPEED           = 1 # not being used
+# COLLIDED_SPEED  = 0.5
 
 DEFAULT_COLOR   = (0, 0, 255)
 INFECTED_COLOR  = (255, 0, 0)
@@ -37,7 +20,7 @@ RECOVERY        = 10 #seconds
 WINDOW_COLOR    = (255, 255, 255)
 WINDOW_TITLE    = "Particles"
 
-NUM_PARTICLES   = 50
+NUM_PARTICLES   = 250
 
 
 # activate pygame library
@@ -52,22 +35,25 @@ screen.fill(WINDOW_COLOR)
 #represents a particle
 class Particle:
     def __init__(self, x, y, angle):
+        
+        self.angle = angle
+        self.speed = random.random() # a characteristic of the Particle
+        self.current_speed = self.speed # actual speed, adjusted after collisions
+        self.collision_time = 0 # time since latest collision
+        self.collided = False        
+
         self.x = x
         self.y = y
         self.radius = RADIUS
         self.thickness = 1
-        self.speed = random.random() # a characteristic of the Particle
-        self.current_speed = self.speed # actual speed, adjusted after collisions
-        self.collision_time = 0 # time since latest collision
-        self.collided = False
-        self.color = (0, 0, 100 + self.speed * 155)
-        self.angle = angle
+        self.color = (0, 0, 100 + self.speed * 155)        
+        
         self.status = "healthy"
         self.onset = 0 # this doesn't become relevant until infection
 
         self.recovery_probability  = random.uniform(0.9, 1)
         self.symptomatic_probability = random.uniform(0.5, 0.75)
-        self.infection_probability = random.uniform(0.9, 1) # not realistic?
+        self.infection_probability = random.uniform(0.9, 1)
 
     # draw particle on screen
     def display(self):
@@ -78,11 +64,11 @@ class Particle:
     def move(self):
         # check if speed should be reset - it is averaged, then restored to the
         # particle's original speed
-##        if (self.collided and time.time() - self.collision_time >= 0.5):
-##            self.current_speed = self.speed
-##            self.collided = False
-##        elif (self.collided and time.time() - self.collision_time >= 0.25):
-##            self.current_speed = (self.current_speed + self.speed) / 2
+        if (self.collided and time.time() - self.collision_time >= 0.5):
+            self.current_speed = self.speed
+            self.collided = False
+        elif (self.collided and time.time() - self.collision_time >= 0.25):
+            self.current_speed = (self.current_speed + self.speed) / 2
 
         # update position
         self.x += math.cos(self.angle) * self.current_speed
@@ -119,10 +105,16 @@ class Particle:
 
     # check if the particle should recover, if so, recover
     def recover(self):
+        should_remove = False
         if self.status == "infected" and time.time() - self.onset > RECOVERY:
-            self.color  = RECOVERED_COLOR
-            self.status = "recovered"
-            self.infection_probability = random.uniform(0, 0.01)
+            num = random.random()
+            if num < self.recovery_probability:
+                self.color  = RECOVERED_COLOR
+                self.status = "recovered"
+                self.infection_probability = random.uniform(0, 0.01)
+            else:
+                should_remove = True
+        return should_remove
             
 
 # adjust direction if centers of any two particles are closer than twice
@@ -186,8 +178,9 @@ def main():
         for p in particles:
             p.move()
             p.bounce()
-            p.display()
-            p.recover()
+            if p.recover(): #recover returns true if should remove particle
+                particles.remove(p)            
+            p.display()            
         
         collide(particles)
         pygame.display.update()
