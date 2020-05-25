@@ -6,9 +6,10 @@ import time   #to keep track of infection time
 
 
 # constants
-RADIUS    = 5
-(WIDTH, HEIGHT) = (300, 300)
-# SPEED           = 1 # not being used
+RADIUS    = 15
+(WIDTH, HEIGHT) = (500, 500) #height excludes text box
+TEXT_BOX_HEIGHT = 100 # height of box with text at bottom of screen
+# SPEED           = 1
 # COLLIDED_SPEED  = 0.5
 
 DEFAULT_COLOR   = (0, 0, 255)
@@ -20,16 +21,18 @@ RECOVERY        = 10 #seconds
 WINDOW_COLOR    = (255, 255, 255)
 WINDOW_TITLE    = "Particles"
 
-NUM_PARTICLES   = 250
+NUM_PARTICLES   = 50
 
 
 # activate pygame library
 pygame.init()
 
 # create pygame window object and display it
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((WIDTH, HEIGHT + TEXT_BOX_HEIGHT))
 pygame.display.set_caption(WINDOW_TITLE)
 screen.fill(WINDOW_COLOR)
+
+
 
 
 #represents a particle
@@ -45,12 +48,12 @@ class Particle:
         self.x = x
         self.y = y
         self.radius = RADIUS
-        self.thickness = 1
         self.color = (0, 0, 100 + self.speed * 155)        
         
         self.status = "healthy"
         self.onset = 0 # this doesn't become relevant until infection
 
+        # rates
         self.recovery_probability  = random.uniform(0.9, 1)
         self.symptomatic_probability = random.uniform(0.5, 0.75)
         self.infection_probability = random.uniform(0.9, 1)
@@ -64,11 +67,11 @@ class Particle:
     def move(self):
         # check if speed should be reset - it is averaged, then restored to the
         # particle's original speed
-        if (self.collided and time.time() - self.collision_time >= 0.5):
-            self.current_speed = self.speed
-            self.collided = False
-        elif (self.collided and time.time() - self.collision_time >= 0.25):
-            self.current_speed = (self.current_speed + self.speed) / 2
+##        if (self.collided and time.time() - self.collision_time >= 0.5):
+##            self.current_speed = self.speed
+##            self.collided = False
+##        elif (self.collided and time.time() - self.collision_time >= 0.25):
+##            self.current_speed = (self.current_speed + self.speed) / 2
 
         # update position
         self.x += math.cos(self.angle) * self.current_speed
@@ -105,7 +108,6 @@ class Particle:
 
     # check if the particle should recover, if so, recover
     def recover(self):
-        should_remove = False
         if self.status == "infected" and time.time() - self.onset > RECOVERY:
             num = random.random()
             if num < self.recovery_probability:
@@ -113,8 +115,7 @@ class Particle:
                 self.status = "recovered"
                 self.infection_probability = random.uniform(0, 0.01)
             else:
-                should_remove = True
-        return should_remove
+                self.status = "dead"
             
 
 # adjust direction if centers of any two particles are closer than twice
@@ -164,6 +165,12 @@ def main():
 
     particles[0].infect()
 
+    # initialize status counts
+    healthy = 0
+    infected = 0
+    recovered = 0
+    dead = 0
+
     # make screen persist until user closes it
     running = True
     while running:
@@ -174,15 +181,46 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit() # we could also set running = False
 
+                  
+        # check if particles run into each other
+        collide(particles)
+
+        #reset particle status counts
+        healthy = 0
+        infected = 0
+        recovered = 0
+
         # update each particle in our list and the display
         for p in particles:
             p.move()
             p.bounce()
-            if p.recover(): #recover returns true if should remove particle
-                particles.remove(p)            
-            p.display()            
+            p.recover()
+            p.display()
+
+            if p.status == "healthy":
+                healthy += 1
+            elif p.status == "infected":
+                infected += 1
+            elif p.status == "recovered":
+                recovered += 1
+            elif p.status == "dead":
+                dead += 1
+                particles.remove(p)
+
+        # create font object
+        font = pygame.font.Font(pygame.font.get_default_font(), 15)
+
+        # create Surfaces with text and combine it with the screen surface
+        # to display status counts
+        text = font.render("healthy: " + str(healthy), True, (0, 0, 0))
+        screen.blit(text, (10, HEIGHT))
+        text = font.render("infected: " + str(infected), True, (0, 0, 0))
+        screen.blit(text, (10, HEIGHT + 20))
+        text = font.render("recovered: " + str(recovered), True, (0, 0, 0))
+        screen.blit(text, (10, HEIGHT + 40))
+        text = font.render("dead: " + str(dead), True, (0, 0, 0))
+        screen.blit(text, (10, HEIGHT + 60))
         
-        collide(particles)
         pygame.display.update()
         screen.fill(WINDOW_COLOR)
 
