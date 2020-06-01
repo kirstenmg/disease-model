@@ -4,8 +4,7 @@ import random #to determine random movement
 import math   #to use math functions
 import time   #to keep track of infection time
 
-
-# constants
+# constants for this project
 RADIUS    = 15
 (WIDTH, HEIGHT) = (500, 500) #height excludes text box
 TEXT_BOX_HEIGHT = 100 # height of box with text at bottom of screen
