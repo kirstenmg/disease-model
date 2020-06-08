@@ -4,12 +4,19 @@ import random #to determine random movement
 import math   #to use math functions
 import time   #to keep track of infection time
 
+import matplotlib.pyplot as plt #to create a graph
+
+### get input
+##p_speed = float(input("speed of particles: "))
+##p_radius = int(input("size of particles: "))
+##p_num = int(input("number of particles: "))
+
 
 # constants
-RADIUS    = 15
+RADIUS    = 10
 (WIDTH, HEIGHT) = (500, 500) #height excludes text box
 TEXT_BOX_HEIGHT = 100 # height of box with text at bottom of screen
-# SPEED           = 1
+SPEED           = 1
 # COLLIDED_SPEED  = 0.5
 
 DEFAULT_COLOR   = (0, 0, 255)
@@ -21,7 +28,7 @@ RECOVERY        = 10 #seconds
 WINDOW_COLOR    = (255, 255, 255)
 WINDOW_TITLE    = "Particles"
 
-NUM_PARTICLES   = 50
+NUM_PARTICLES   = 100
 
 
 # activate pygame library
@@ -41,6 +48,7 @@ class Particle:
         
         self.angle = angle
         self.speed = random.random() # a characteristic of the Particle
+        self.color = (0, 0, 100 + self.speed * 155)
         self.current_speed = self.speed # actual speed, adjusted after collisions
         self.collision_time = 0 # time since latest collision
         self.collided = False        
@@ -60,8 +68,8 @@ class Particle:
 
     # draw particle on screen
     def display(self):
-        pygame.draw.circle(screen, self.color, ((int)(self.x),
-                           (int)(self.y)), self.radius)
+        pygame.draw.circle(screen, self.color, (int(self.x),
+                           int(self.y)), self.radius)
 
     # update x and y position of particle
     def move(self):
@@ -74,8 +82,8 @@ class Particle:
 ##            self.current_speed = (self.current_speed + self.speed) / 2
 
         # update position
-        self.x += math.cos(self.angle) * self.current_speed
-        self.y += -math.sin(self.angle) * self.current_speed
+        self.x += math.cos(self.angle) * self.current_speed * SPEED
+        self.y += -math.sin(self.angle) * self.current_speed * SPEED
 
     # check if particle needs to bounce off the wall
     def bounce(self):
@@ -150,8 +158,9 @@ def collide(particles):
                     other.infect()
 
                 # adjust target x and y to be next to other
-                target.x = other.x + diff_x / distance * 2 * RADIUS
-                target.y = other.y + diff_y / distance * 2 * RADIUS
+                if distance != 0:
+                    target.x = other.x + diff_x / distance * 2 * RADIUS
+                    target.y = other.y + diff_y / distance * 2 * RADIUS
 
 def main():
     particles = []
@@ -167,9 +176,15 @@ def main():
 
     # initialize status counts
     healthy = 0
-    infected = 0
+    infected = 1
     recovered = 0
     dead = 0
+
+    #create array to store healthy counts
+    healthy_counts = []
+    infected_counts = []
+    recovered_counts = []
+    death_counts = []
 
     # make screen persist until user closes it
     running = True
@@ -190,6 +205,9 @@ def main():
         infected = 0
         recovered = 0
 
+        
+
+
         # update each particle in our list and the display
         for p in particles:
             p.move()
@@ -207,8 +225,16 @@ def main():
                 dead += 1
                 particles.remove(p)
 
+        healthy_counts.append(healthy)
+        infected_counts.append(infected)
+        recovered_counts.append(recovered)
+        death_counts.append(dead)
+            
+
         # create font object
         font = pygame.font.Font(pygame.font.get_default_font(), 15)
+
+        
 
         # create Surfaces with text and combine it with the screen surface
         # to display status counts
@@ -223,5 +249,13 @@ def main():
         
         pygame.display.update()
         screen.fill(WINDOW_COLOR)
+
+        if (infected == 0 and (recovered > 1 or dead > 1)):
+            running = False
+            plt.stackplot(range(0, len(healthy_counts)), death_counts,\
+                          recovered_counts, infected_counts,  recovered_counts)
+            plt.show()
+
+        
 
 main()
