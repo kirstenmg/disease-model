@@ -5,7 +5,6 @@ import math   #to use math functions
 import time   #to keep track of infection time
 import matplotlib.pyplot as plt #to create a graph
 
-
 # constants for setup
 RADIUS    = 15
 (WIDTH, HEIGHT) = (500, 500) #height excludes text box
