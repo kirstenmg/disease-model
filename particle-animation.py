@@ -3,33 +3,28 @@ import pygame #to draw window, particles
 import random #to determine random movement
 import math   #to use math functions
 import time   #to keep track of infection time
-
 import matplotlib.pyplot as plt #to create a graph
 
-### get input
-##p_speed = float(input("speed of particles: "))
-##p_radius = int(input("size of particles: "))
-##p_num = int(input("number of particles: "))
 
-
-# constants
-RADIUS    = 10
+# constants for setup
+RADIUS    = 15
 (WIDTH, HEIGHT) = (500, 500) #height excludes text box
 TEXT_BOX_HEIGHT = 100 # height of box with text at bottom of screen
-SPEED           = 1
-# COLLIDED_SPEED  = 0.5
-
-DEFAULT_COLOR   = (0, 0, 255)
-INFECTED_COLOR  = (255, 0, 0)
-RECOVERED_COLOR = (0, 255, 0)
-
+SPEED           = 2
 RECOVERY        = 10 #seconds
 
 WINDOW_COLOR    = (255, 255, 255)
 WINDOW_TITLE    = "Particles"
 
-NUM_PARTICLES   = 100
+NUM_PARTICLES   = 50
 
+# constants for infection, recovery, symptomatic rates
+INFECTION_MIN   = 0.9
+INFECTION_MAX   = 1
+RECOVERY_MAX    = 1
+RECOVERY_MIN    = 0.9
+SYMPTOMATIC_MIN = 0.75
+SYMPTOMATIC_MAX = 0.5
 
 # activate pygame library
 pygame.init()
@@ -38,8 +33,6 @@ pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT + TEXT_BOX_HEIGHT))
 pygame.display.set_caption(WINDOW_TITLE)
 screen.fill(WINDOW_COLOR)
-
-
 
 
 #represents a particle
@@ -62,9 +55,12 @@ class Particle:
         self.onset = 0 # this doesn't become relevant until infection
 
         # rates
-        self.recovery_probability  = random.uniform(0.9, 1)
-        self.symptomatic_probability = random.uniform(0.5, 0.75)
-        self.infection_probability = random.uniform(0.9, 1)
+        self.recovery_probability    = random.uniform(RECOVERY_MIN,\
+                                                      RECOVERY_MAX)
+        self.symptomatic_probability = random.uniform(SYMPTOMATIC_MIN,\
+                                                      SYMPTOMATIC_MAX)
+        self.infection_probability   = random.uniform(INFECTION_MIN,\
+                                                      INFECTION_MAX)
 
     # draw particle on screen
     def display(self):
@@ -73,15 +69,6 @@ class Particle:
 
     # update x and y position of particle
     def move(self):
-        # check if speed should be reset - it is averaged, then restored to the
-        # particle's original speed
-##        if (self.collided and time.time() - self.collision_time >= 0.5):
-##            self.current_speed = self.speed
-##            self.collided = False
-##        elif (self.collided and time.time() - self.collision_time >= 0.25):
-##            self.current_speed = (self.current_speed + self.speed) / 2
-
-        # update position
         self.x += math.cos(self.angle) * self.current_speed * SPEED
         self.y += -math.sin(self.angle) * self.current_speed * SPEED
 
@@ -116,19 +103,19 @@ class Particle:
 
     # check if the particle should recover, if so, recover
     def recover(self):
-        if self.status == "infected" and time.time() - self.onset > RECOVERY:
+        if self.status == "infected" and\
+           time.time() - self.onset > RECOVERY:
             num = random.random()
             if num < self.recovery_probability:
-                self.color  = RECOVERED_COLOR
+                self.color  = (0, 255, 0)
                 self.status = "recovered"
                 self.infection_probability = random.uniform(0, 0.01)
             else:
                 self.status = "dead"
-            
+                
 
-# adjust direction if centers of any two particles are closer than twice
-# the radius
-# parameter is list of all particles in the window
+# adjust direction if centers of any two particles are too close
+# param particles is a list of all particles in the window
 def collide(particles):
     for i in range(0, len(particles) - 1):
         target = particles[i]
@@ -153,7 +140,8 @@ def collide(particles):
                 target.collided = True
                 other.collided  = True
 
-                if (target.status == "infected" or other.status == "infected"):
+                if (target.status == "infected"\
+                    or other.status == "infected"):                    
                     target.infect()
                     other.infect()
 
@@ -203,9 +191,7 @@ def main():
         #reset particle status counts
         healthy = 0
         infected = 0
-        recovered = 0
-
-        
+        recovered = 0     
 
 
         # update each particle in our list and the display
@@ -225,19 +211,17 @@ def main():
                 dead += 1
                 particles.remove(p)
 
+        # add counts at this point in time, for graphing later
         healthy_counts.append(healthy)
         infected_counts.append(infected)
         recovered_counts.append(recovered)
         death_counts.append(dead)
             
-
         # create font object
-        font = pygame.font.Font(pygame.font.get_default_font(), 15)
+        font = pygame.font.Font(pygame.font.get_default_font(), 15)        
 
-        
-
-        # create Surfaces with text and combine it with the screen surface
-        # to display status counts
+        # create Surfaces with text and combine it with the screen
+        # surface to display status counts
         text = font.render("healthy: " + str(healthy), True, (0, 0, 0))
         screen.blit(text, (10, HEIGHT))
         text = font.render("infected: " + str(infected), True, (0, 0, 0))
@@ -246,16 +230,20 @@ def main():
         screen.blit(text, (10, HEIGHT + 40))
         text = font.render("dead: " + str(dead), True, (0, 0, 0))
         screen.blit(text, (10, HEIGHT + 60))
-        
+
+        # update the display
         pygame.display.update()
         screen.fill(WINDOW_COLOR)
 
+        # once no particles are infected, stop running and display graph
         if (infected == 0 and (recovered > 1 or dead > 1)):
             running = False
-            plt.stackplot(range(0, len(healthy_counts)), death_counts,\
-                          recovered_counts, infected_counts,  recovered_counts)
+
+            # plot infections over time
+            plt.plot(infected_counts)
+            plt.xlabel("time")
+            plt.ylabel("number of infected particles")
+            plt.title("Infection counts over time")
             plt.show()
-
         
-
 main()
