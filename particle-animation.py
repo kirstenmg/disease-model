@@ -40,7 +40,6 @@ class Particle:
         
         self.angle = angle
         self.speed = random.random() # a characteristic of the Particle
-        self.color = (0, 0, 100 + self.speed * 155)
         self.current_speed = self.speed # actual speed, adjusted after collisions
         self.collision_time = 0 # time since latest collision
         self.collided = False        
@@ -48,7 +47,7 @@ class Particle:
         self.x = x
         self.y = y
         self.radius = RADIUS
-        self.color = (0, 0, 100 + self.speed * 155)        
+        self.color = (0, 0, 255)        
         
         self.status = "healthy"
         self.onset = 0 # this doesn't become relevant until infection
@@ -96,7 +95,7 @@ class Particle:
             if num <= self.infection_probability:
                 num = random.random()
                 if num <= self.symptomatic_probability:
-                    self.color  = (100 * self.speed + 155, 0, 0)
+                    self.color  = (255, 0, 0)
                 self.status = "infected"
                 self.onset  = time.time()
 
